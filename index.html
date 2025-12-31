@@ -2,125 +2,124 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>PNG → 엔트리용 색상 코드 (비율 유지)</title>
+    <title>PNG → 엔트리 8자리 코드 변환기</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
+        body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; background-color: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h2 { color: #3273e6; border-bottom: 2px solid #3273e6; padding-bottom: 10px; }
         #output { 
-            max-height: 400px; 
-            overflow: auto; 
-            background: #f4f4f4; 
-            padding: 15px; 
-            border: 1px solid #ddd;
-            white-space: pre-wrap;
-            word-break: break-all;
-            font-family: monospace;
-            font-size: 12px;
+            width: 100%; height: 300px; overflow: auto; background: #222; color: #adff2f;
+            padding: 15px; border: 1px solid #ccc; white-space: pre-wrap; word-break: break-all;
+            font-family: 'Consolas', monospace; font-size: 11px; margin-top: 10px;
         }
-        .controls { margin-bottom: 15px; background: #eee; padding: 15px; border-radius: 8px; }
-        button { padding: 8px 20px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 4px; font-weight: bold; }
-        button:hover { background: #45a049; }
-        .info { margin-top: 10px; font-weight: bold; color: #333; }
+        .controls { margin: 20px 0; display: flex; align-items: center; gap: 10px; }
+        input[type="file"] { flex-grow: 1; }
+        button { 
+            padding: 10px 20px; cursor: pointer; background: #3273e6; color: white; 
+            border: none; border-radius: 5px; font-weight: bold; transition: 0.3s;
+        }
+        button:hover { background: #2556b5; }
+        .info { font-size: 0.9em; color: #666; margin-bottom: 5px; }
     </style>
 </head>
 <body>
-    <h2>🖼️ PNG → 엔트리 색상 코드 변환기</h2>
-    <p>이미지가 200px을 넘으면 비율에 맞춰 자동으로 축소됩니다.</p>
+
+<div class="container">
+    <h2>🖼️ 엔트리용 이미지 코드 변환기 (8자리)</h2>
+    <p class="info">이미지는 비율을 유지하며 최대 200px 크기로 자동 조절됩니다.</p>
     
     <div class="controls">
         <input type="file" id="fileInput" accept="image/png, image/jpeg">
-        <button id="copyBtn">결과 복사하기</button>
-        <div id="sizeInfo" class="info">파일을 선택해 주세요.</div>
+        <button id="copyBtn">코드 복사하기</button>
     </div>
+    
+    <div id="sizeInfo" class="info">파일을 선택하면 여기에 정보가 표시됩니다.</div>
+    <pre id="output">변환된 코드가 여기에 표시됩니다...</pre>
+</div>
 
-    <pre id="output">결과가 여기에 표시됩니다...</pre>
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const output = document.getElementById('output');
+    const copyBtn = document.getElementById('copyBtn');
+    const sizeInfo = document.getElementById('sizeInfo');
 
-    <script>
-        const fileInput = document.getElementById('fileInput');
-        const output = document.getElementById('output');
-        const copyBtn = document.getElementById('copyBtn');
-        const sizeInfo = document.getElementById('sizeInfo');
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0]; // 파일 선택 오류 수정
+        if (!file) return;
 
-        fileInput.addEventListener('change', function(e) {
-            const file = e.target.files[0]; // [수정됨] 첫 번째 파일을 가져옴
-            if (!file) return;
+        const img = new Image();
+        const reader = new FileReader();
 
-            const img = new Image();
-            const reader = new FileReader();
+        reader.onload = function(evt) {
+            img.src = evt.target.result;
+        };
 
-            reader.onload = function(evt) {
-                img.src = evt.target.result;
-            };
+        img.onload = function() {
+            let W = img.width;
+            let H = img.height;
+            const MAX_SIZE = 200;
 
-            img.onload = function() {
-                let W = img.width;
-                let H = img.height;
-                const MAX_SIZE = 200;
-
-                // --- 비율 유지 리사이징 로직 ---
-                if (W > MAX_SIZE || H > MAX_SIZE) {
-                    const ratio = Math.min(MAX_SIZE / W, MAX_SIZE / H);
-                    W = Math.floor(W * ratio);
-                    H = Math.floor(H * ratio);
-                }
-
-                sizeInfo.textContent = `✅ 변환 완료: ${W} x ${H} (원본: ${img.width} x ${img.height})`;
-
-                const canvas = document.createElement('canvas');
-                canvas.width = W;
-                canvas.height = H;
-                const ctx = canvas.getContext('2d');
-                
-                // 이미지 품질을 위해 이미지 스무딩 활성화
-                ctx.imageSmoothingEnabled = true;
-                ctx.imageSmoothingQuality = 'high';
-                
-                // 줄어든 크기로 캔버스에 그리기
-                ctx.drawImage(img, 0, 0, W, H);
-
-                const imageData = ctx.getImageData(0, 0, W, H).data;
-                let result = `W=${W};H=${H};\n`;
-
-                for (let y = 0; y < H; y++) {
-                    let row = [];
-                    for (let x = 0; x < W; x++) {
-                        const index = (y * W + x) * 4;
-                        const r = imageData[index];
-                        const g = imageData[index + 1];
-                        const b = imageData[index + 2];
-                        const a = imageData[index + 3];
-
-                        // 투명한 픽셀(a < 128)은 흰색(#FFFFFF)으로 처리
-                        if (a < 128) {
-                            row.push('#FFFFFF');
-                        } else {
-                            const hex = '#' + 
-                                r.toString(16).padStart(2, '0').toUpperCase() + 
-                                g.toString(16).padStart(2, '0').toUpperCase() + 
-                                b.toString(16).padStart(2, '0').toUpperCase();
-                            row.push(hex);
-                        }
-                    }
-                    result += row.join(' ') + '\n';
-                }
-                output.textContent = result;
-            };
-            reader.readAsDataURL(file);
-        });
-
-        // 복사 기능
-        copyBtn.addEventListener('click', function() {
-            const textToCopy = output.textContent;
-            if (textToCopy.startsWith('결과')) {
-                alert('먼저 이미지를 변환해 주세요.');
-                return;
+            // 1. 비율 유지 리사이징 로직
+            if (W > MAX_SIZE || H > MAX_SIZE) {
+                const ratio = Math.min(MAX_SIZE / W, MAX_SIZE / H);
+                W = Math.floor(W * ratio);
+                H = Math.floor(H * ratio);
             }
+
+            sizeInfo.innerHTML = `<strong>변환 크기:</strong> ${W} x ${H} <span style="color:#999;">(원본: ${img.width}x${img.height})</span>`;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = W;
+            canvas.height = H;
+            const ctx = canvas.getContext('2d');
             
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                alert('복사되었습니다! 엔트리에 붙여넣으세요.');
-            }).catch(err => {
-                alert('복사 실패: ' + err);
-            });
+            // 이미지 품질 설정
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, W, H);
+
+            const imageData = ctx.getImageData(0, 0, W, H).data;
+            
+            // 2. 엔트리 변수/리스트 구조에 맞게 텍스트 생성
+            // W=가로;H=세로; 정보를 첫 줄에 넣어 파싱하기 쉽게 구성
+            let result = `W=${W};H=${H};\n`;
+
+            for (let y = 0; y < H; y++) {
+                let row = [];
+                for (let x = 0; x < W; x++) {
+                    const index = (y * W + x) * 4;
+                    
+                    const r = imageData[index].toString(16).padStart(2, '0').toUpperCase();
+                    const g = imageData[index + 1].toString(16).padStart(2, '0').toUpperCase();
+                    const b = imageData[index + 2].toString(16).padStart(2, '0').toUpperCase();
+                    const a = imageData[index + 3].toString(16).padStart(2, '0').toUpperCase();
+
+                    // 8자리 RGBA 포맷 (#RRGGBBAA)
+                    row.push(`#${r}${g}${b}${a}`);
+                }
+                // 엔트리에서 '리스트'에 넣을 경우 각 행을 공백으로 구분
+                result += row.join(' ') + '\n';
+            }
+            output.textContent = result;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // 클립보드 복사 기능
+    copyBtn.addEventListener('click', function() {
+        const textToCopy = output.textContent;
+        if (textToCopy.includes('변환된 코드')) {
+            alert('먼저 이미지를 선택해 주세요.');
+            return;
+        }
+        
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            alert('코드가 클립보드에 복사되었습니다!\n엔트리의 변수나 리스트에 붙여넣으세요.');
+        }).catch(err => {
+            alert('복사 실패: ' + err);
         });
-    </script>
+    });
+</script>
+
 </body>
 </html>
