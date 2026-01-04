@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>엔트리 인스타용 변환기 (64x64)</title>
+    <title>엔트리 인스타용 변환기 (64x64) - 6자리(노샵)</title>
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; background-color: #fafafa; color: #262626; }
         .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border: 1px solid #dbdbdb; border-radius: 3px; }
@@ -27,7 +27,7 @@
 
 <div class="container">
     <h2>Instagram Code Gen</h2>
-    <p class="info">사진을 선택하면 엔트리용 <b>64x64</b> 코드로 자동 변환됩니다.</p>
+    <p class="info">사진을 선택하면 엔트리용 <b>6자리 16진수</b> 코드로 변환됩니다.</p>
     
     <div class="controls">
         <input type="file" id="fileInput" accept="image/png, image/jpeg">
@@ -58,9 +58,8 @@
         img.onload = function() {
             let W = img.width;
             let H = img.height;
-            const TARGET_SIZE = 64; // 인스타 최적화 크기
+            const TARGET_SIZE = 64; 
 
-            // 비율 유지하며 64px 맞추기
             const ratio = Math.min(TARGET_SIZE / W, TARGET_SIZE / H);
             W = Math.floor(W * ratio);
             H = Math.floor(H * ratio);
@@ -72,24 +71,21 @@
             canvas.height = H;
             const ctx = canvas.getContext('2d');
             
-            // 이미지 품질 설정 (픽셀 아트 느낌 유지)
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
             ctx.drawImage(img, 0, 0, W, H);
 
             const imageData = ctx.getImageData(0, 0, W, H).data;
             
-            // 엔트리 파싱용 헤더 포함
             let result = `W=${W};H=${H};`;
 
             for (let i = 0; i < imageData.length; i += 4) {
                 const r = imageData[i].toString(16).padStart(2, '0').toUpperCase();
                 const g = imageData[i+1].toString(16).padStart(2, '0').toUpperCase();
                 const b = imageData[i+2].toString(16).padStart(2, '0').toUpperCase();
-                const a = imageData[i+3].toString(16).padStart(2, '0').toUpperCase();
                 
-                // 각 픽셀을 공백으로 구분하여 나열
-                result += `#${r}${g}${b}${a} `;
+                // #을 제거하고 색상 코드만 추가
+                result += `${r}${g}${b} `;
             }
             
             output.textContent = result.trim();
@@ -102,7 +98,7 @@
         if (text.length < 50) return alert('이미지를 먼저 선택해주세요!');
         
         navigator.clipboard.writeText(text).then(() => {
-            alert('복사 성공! 엔트리 리스트 항목에 붙여넣으세요.');
+            alert('복사 성공! (# 제외 6자리 형식)');
         });
     });
 </script>
