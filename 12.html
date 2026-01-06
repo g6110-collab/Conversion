@@ -2,15 +2,15 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>엔트리 인스타용 변환기 (원본 크기) - 6자리(노샵)</title>
+    <title>엔트리 인스타용 변환기 (원본 크기) - 뒤틀림 방지</title>
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; background-color: #fafafa; color: #262626; }
         .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border: 1px solid #dbdbdb; border-radius: 3px; }
         h2 { text-align: center; font-size: 24px; margin-bottom: 20px; color: #262626; }
         #output { 
             width: 100%; height: 250px; overflow: auto; background: #f8f9fa; 
-            padding: 15px; border: 1px solid #dbdbdb; white-space: pre-wrap; 
-            word-break: break-all; font-family: monospace; font-size: 10px; margin-top: 15px;
+            padding: 15px; border: 1px solid #dbdbdb; white-space: nowrap; 
+            word-break: keep-all; font-family: monospace; font-size: 10px; margin-top: 15px;
         }
         .controls { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; }
         input[type="file"] { border: 1px solid #dbdbdb; padding: 10px; border-radius: 5px; width: 100%; box-sizing: border-box; }
@@ -27,7 +27,7 @@
 
 <div class="container">
     <h2>Instagram Code Gen</h2>
-    <p class="info">사진을 선택하면 <b>W=가로;H=세로; 색상</b> 형식으로 변환됩니다.</p>
+    <p class="info">줄바꿈 없이 <b>일렬로</b> 코드가 생성됩니다.</p>
     
     <div class="controls">
         <input type="file" id="fileInput" accept="image/png, image/jpeg">
@@ -35,7 +35,7 @@
     </div>
     
     <div id="sizeInfo" class="status">이미지를 대기 중...</div>
-    <pre id="output">이곳의 코드를 복사하여 엔트리 리스트에 붙여넣으세요.</pre>
+    <pre id="output">이곳에 결과가 표시됩니다.</pre>
 </div>
 
 <script>
@@ -56,34 +56,33 @@
         };
 
         img.onload = function() {
-            let W = img.width;
-            let H = img.height;
+            // naturalWidth/Height를 사용하여 이미지 본래 크기를 정확히 가져옴
+            const W = img.naturalWidth;
+            const H = img.naturalHeight;
 
-            sizeInfo.textContent = `✅ 원본 크기 변환 완료 (${W}x${H})`;
+            sizeInfo.textContent = `✅ 변환 완료 (${W}x${H})`;
 
             const canvas = document.createElement('canvas');
             canvas.width = W;
             canvas.height = H;
             const ctx = canvas.getContext('2d');
+            
+            // 이미지 렌더링 시 보간 방지 (픽셀을 정확하게 추출)
+            ctx.imageSmoothingEnabled = false;
             ctx.drawImage(img, 0, 0, W, H);
 
             const imageData = ctx.getImageData(0, 0, W, H).data;
             
-            // 세미콜론 뒤에 공백 한 칸 추가 ("W=27;H=27; ")
+            // 헤더 작성: W=숫자;H=숫자; 뒤에 공백 한 칸
             let result = `W=${W};H=${H}; `;
 
+            // 픽셀 데이터를 한 줄로 생성 (줄바꿈 \n 제거)
             for (let i = 0; i < imageData.length; i += 4) {
                 const r = imageData[i].toString(16).padStart(2, '0').toUpperCase();
                 const g = imageData[i+1].toString(16).padStart(2, '0').toUpperCase();
                 const b = imageData[i+2].toString(16).padStart(2, '0').toUpperCase();
                 
                 result += `${r}${g}${b} `;
-
-                // 가로(W) 픽셀마다 줄바꿈 (선택 사항이지만 가독성을 위해 추가)
-                const currentPixel = (i / 4) + 1;
-                if (currentPixel % W === 0 && currentPixel !== W * H) {
-                    result += "\n";
-                }
             }
             
             output.textContent = result.trim();
@@ -96,7 +95,7 @@
         if (text.length < 10) return alert('이미지를 먼저 선택해주세요!');
         
         navigator.clipboard.writeText(text).then(() => {
-            alert('복사 성공! (W=1;H=1; 000000 형식)');
+            alert('복사 성공! 엔트리 리스트에 바로 붙여넣으세요.');
         });
     });
 </script>
