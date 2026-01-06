@@ -2,104 +2,101 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>PNG → 엔트리용 색상 코드 (비율 유지 리사이징)</title>
+    <title>엔트리 인스타용 변환기 (원본 크기) - 6자리(노샵)</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; }
+        body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; background-color: #fafafa; color: #262626; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border: 1px solid #dbdbdb; border-radius: 3px; }
+        h2 { text-align: center; font-size: 24px; margin-bottom: 20px; color: #262626; }
         #output { 
-            max-height: 400px; 
-            overflow: auto; 
-            background: #f0f0f0; 
-            padding: 10px; 
-            border: 1px solid #ccc;
-            white-space: pre-wrap;
-            word-break: break-all;
-            font-size: 11px;
-            line-height: 1.2;
+            width: 100%; height: 250px; overflow: auto; background: #f8f9fa; 
+            padding: 15px; border: 1px solid #dbdbdb; white-space: pre-wrap; 
+            word-break: break-all; font-family: monospace; font-size: 10px; margin-top: 15px;
         }
-        .controls { margin-bottom: 10px; }
-        button { padding: 5px 15px; cursor: pointer; }
-        .info { margin-bottom: 5px; font-size: 0.9em; color: #555; }
+        .controls { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; }
+        input[type="file"] { border: 1px solid #dbdbdb; padding: 10px; border-radius: 5px; width: 100%; box-sizing: border-box; }
+        button { 
+            padding: 12px; cursor: pointer; background: #0095f6; color: white; 
+            border: none; border-radius: 5px; font-weight: bold; font-size: 14px;
+        }
+        button:hover { background: #1877f2; }
+        .info { font-size: 0.85em; color: #8e8e8e; text-align: center; }
+        .status { font-weight: bold; color: #0095f6; margin-top: 10px; text-align: center; }
     </style>
 </head>
 <body>
-    <h2>PNG 색상 추출 (비율 유지 최대 200px)</h2>
+
+<div class="container">
+    <h2>Instagram Code Gen</h2>
+    <p class="info">사진을 선택하면 원본 크기 그대로 <b>6자리 16진수</b> 코드로 변환됩니다.</p>
     
     <div class="controls">
-        <input type="file" id="fileInput" accept="image/png">
-        <button id="copyBtn">복사하기</button>
+        <input type="file" id="fileInput" accept="image/png, image/jpeg">
+        <button id="copyBtn">변환된 코드 복사하기</button>
     </div>
-    <div id="status" class="info">이미지를 선택해주세요.</div>
+    
+    <div id="sizeInfo" class="status">이미지를 대기 중...</div>
+    <pre id="output">이곳의 코드를 복사하여 엔트리 리스트에 붙여넣으세요.</pre>
+</div>
 
-    <pre id="output">결과가 여기에 표시됩니다...</pre>
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const output = document.getElementById('output');
+    const copyBtn = document.getElementById('copyBtn');
+    const sizeInfo = document.getElementById('sizeInfo');
 
-    <script>
-        const fileInput = document.getElementById('fileInput');
-        const output = document.getElementById('output');
-        const copyBtn = document.getElementById('copyBtn');
-        const status = document.getElementById('status');
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
 
-        fileInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+        const img = new Image();
+        const reader = new FileReader();
 
-            const img = new Image();
-            const reader = new FileReader();
+        reader.onload = function(evt) {
+            img.src = evt.target.result;
+        };
 
-            reader.onload = function(evt) {
-                img.src = evt.target.result;
-            };
+        img.onload = function() {
+            // TARGET_SIZE 제한 로직 삭제: 이미지 본래의 넓이와 높이를 그대로 사용
+            let W = img.width;
+            let H = img.height;
 
-            img.onload = function() {
-                let targetW = img.width;
-                let targetH = img.height;
-                const MAX_SIZE = 200;
+            sizeInfo.textContent = `✅ 원본 크기 변환 완료 (${W}x${H})`;
 
-                // --- 비율 유지 리사이징 로직 ---
-                if (targetW > MAX_SIZE || targetH > MAX_SIZE) {
-                    const ratio = Math.min(MAX_SIZE / targetW, MAX_SIZE / targetH);
-                    targetW = Math.floor(targetW * ratio);
-                    targetH = Math.floor(targetH * ratio);
-                }
-                // ----------------------------
+            const canvas = document.createElement('canvas');
+            canvas.width = W;
+            canvas.height = H;
+            const ctx = canvas.getContext('2d');
+            
+            // 원본 그대로 그리기
+            ctx.drawImage(img, 0, 0, W, H);
 
-                status.textContent = `원본: ${img.width}x${img.height} -> 변환: ${targetW}x${targetH}`;
+            const imageData = ctx.getImageData(0, 0, W, H).data;
+            
+            let result = `W=${W};H=${H};`;
 
-                const canvas = document.createElement('canvas');
-                canvas.width = targetW;
-                canvas.height = targetH;
-                const ctx = canvas.getContext('2d');
+            for (let i = 0; i < imageData.length; i += 4) {
+                // R, G, B 값을 16진수로 변환
+                const r = imageData[i].toString(16).padStart(2, '0').toUpperCase();
+                const g = imageData[i+1].toString(16).padStart(2, '0').toUpperCase();
+                const b = imageData[i+2].toString(16).padStart(2, '0').toUpperCase();
                 
-                // 캔버스에 이미지 그릴 때 크기를 지정하여 리사이징 수행
-                ctx.drawImage(img, 0, 0, targetW, targetH);
+                result += `${r}${g}${b} `;
+            }
+            
+            output.textContent = result.trim();
+        };
+        reader.readAsDataURL(file);
+    });
 
-                let result = `W=${targetW};H=${targetH};\n`;
-                const imageData = ctx.getImageData(0, 0, targetW, targetH).data;
-
-                for (let y = 0; y < targetH; y++) {
-                    let row = [];
-                    for (let x = 0; x < targetW; x++) {
-                        const index = (y * targetW + x) * 4;
-                        
-                        // 투명도(Alpha) 처리: 투명하면 흰색(#FFFFFF)으로 대체
-                        if (imageData[index + 3] < 128) {
-                            row.push('#FFFFFF');
-                        } else {
-                            const r = imageData[index].toString(16).padStart(2, '0');
-                            const g = imageData[index + 1].toString(16).padStart(2, '0');
-                            const b = imageData[index + 2].toString(16).padStart(2, '0');
-                            row.push(('#' + r + g + b).toUpperCase());
-                        }
-                    }
-                    result += row.join(' ') + '\n';
-                }
-                output.textContent = result;
-            };
-            reader.readAsDataURL(file);
+    copyBtn.addEventListener('click', function() {
+        const text = output.textContent;
+        if (text.length < 10) return alert('이미지를 먼저 선택해주세요!');
+        
+        navigator.clipboard.writeText(text).then(() => {
+            alert('복사 성공! (원본 크기 형식)');
         });
+    });
+</script>
 
-        copyBtn.addEventListener('click', function() {
-            const textToCopy = output.textContent;
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                alert('복사되었습니다!');
-            }).catch(err => {
-                alert('복사 실패. 수동으로 복사해주세요.');
+</body>
+</html>
