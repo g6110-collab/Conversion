@@ -2,78 +2,104 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>엔트리 인스타 변환기 (세미콜론 포함)</title>
+    <title>엔트리 인스타용 변환기 (원본 크기) - 6자리(노샵)</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; text-align: center; background: #fafafa; }
-        .box { max-width: 550px; margin: auto; background: white; padding: 25px; border: 1px solid #dbdbdb; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; background-color: #fafafa; color: #262626; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border: 1px solid #dbdbdb; border-radius: 3px; }
+        h2 { text-align: center; font-size: 24px; margin-bottom: 20px; color: #262626; }
         #output { 
-            width: 100%; height: 200px; margin-top: 15px; word-break: break-all; 
-            font-size: 11px; background: #f1f1f1; overflow-y: auto; padding: 10px; 
-            border: 1px solid #ccc; font-family: monospace; color: #333;
+            width: 100%; height: 250px; overflow: auto; background: #f8f9fa; 
+            padding: 15px; border: 1px solid #dbdbdb; white-space: pre-wrap; 
+            word-break: break-all; font-family: monospace; font-size: 10px; margin-top: 15px;
         }
-        button { width: 100%; padding: 12px; margin-top: 10px; cursor: pointer; background: #0095f6; color: white; border: none; border-radius: 5px; font-weight: bold; }
+        .controls { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; }
+        input[type="file"] { border: 1px solid #dbdbdb; padding: 10px; border-radius: 5px; width: 100%; box-sizing: border-box; }
+        button { 
+            padding: 12px; cursor: pointer; background: #0095f6; color: white; 
+            border: none; border-radius: 5px; font-weight: bold; font-size: 14px;
+        }
         button:hover { background: #1877f2; }
-        .info { font-size: 12px; color: #8e8e8e; margin-top: 10px; }
-        .status { font-weight: bold; color: #0095f6; margin-bottom: 5px; }
+        .info { font-size: 0.85em; color: #8e8e8e; text-align: center; }
+        .status { font-weight: bold; color: #0095f6; margin-top: 10px; text-align: center; }
     </style>
 </head>
 <body>
 
-<div class="box">
-    <h3>📸 Instagram Code (64x64)</h3>
-    <div id="status" class="status">이미지를 선택하세요</div>
-    <input type="file" id="fileInput" accept="image/*">
-    <button id="copyBtn">코드 복사하기</button>
-    <div id="output">변환된 코드가 여기 표시됩니다.</div>
-    <p class="info">형식: W=64; H=64; [색상코드...] (공백 구분)</p>
+<div class="container">
+    <h2>Instagram Code Gen</h2>
+    <p class="info">사진을 선택하면 <b>W=가로;H=세로; 색상</b> 형식으로 변환됩니다.</p>
+    
+    <div class="controls">
+        <input type="file" id="fileInput" accept="image/png, image/jpeg">
+        <button id="copyBtn">변환된 코드 복사하기</button>
+    </div>
+    
+    <div id="sizeInfo" class="status">이미지를 대기 중...</div>
+    <pre id="output">이곳의 코드를 복사하여 엔트리 리스트에 붙여넣으세요.</pre>
 </div>
 
 <script>
     const fileInput = document.getElementById('fileInput');
     const output = document.getElementById('output');
-    const status = document.getElementById('status');
+    const copyBtn = document.getElementById('copyBtn');
+    const sizeInfo = document.getElementById('sizeInfo');
 
     fileInput.addEventListener('change', function(e) {
-        const file = e.target.files[0]; // 파일 객체 참조 수정
+        const file = e.target.files[0];
         if (!file) return;
 
         const img = new Image();
         const reader = new FileReader();
-        reader.onload = (evt) => img.src = evt.target.result;
+
+        reader.onload = function(evt) {
+            img.src = evt.target.result;
+        };
+
         img.onload = function() {
-            let W = img.width, H = img.height;
-            const size = 64; 
-            const ratio = Math.min(size / W, size / H);
-            W = Math.floor(W * ratio); H = Math.floor(H * ratio);
+            let W = img.width;
+            let H = img.height;
+
+            sizeInfo.textContent = `✅ 원본 크기 변환 완료 (${W}x${H})`;
 
             const canvas = document.createElement('canvas');
-            canvas.width = W; canvas.height = H;
+            canvas.width = W;
+            canvas.height = H;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, W, H);
 
-            const data = ctx.getImageData(0, 0, W, H).data;
+            const imageData = ctx.getImageData(0, 0, W, H).data;
             
-            // 요청하신 형식: W=64; H=64; RRGGBB RRGGBB ... (공백 구분)
-            let res = `W=${W}; H=${H};`; 
-            for (let i = 0; i < data.length; i += 4) {
-                const r = data[i].toString(16).padStart(2,'0').toUpperCase();
-                const g = data[i+1].toString(16).padStart(2,'0').toUpperCase();
-                const b = data[i+2].toString(16).padStart(2,'0').toUpperCase();
-                res += ` ${r}${g}${b}`;
+            // 세미콜론 뒤에 공백 한 칸 추가 ("W=27;H=27; ")
+            let result = `W=${W};H=${H}; `;
+
+            for (let i = 0; i < imageData.length; i += 4) {
+                const r = imageData[i].toString(16).padStart(2, '0').toUpperCase();
+                const g = imageData[i+1].toString(16).padStart(2, '0').toUpperCase();
+                const b = imageData[i+2].toString(16).padStart(2, '0').toUpperCase();
+                
+                result += `${r}${g}${b} `;
+
+                // 가로(W) 픽셀마다 줄바꿈 (선택 사항이지만 가독성을 위해 추가)
+                const currentPixel = (i / 4) + 1;
+                if (currentPixel % W === 0 && currentPixel !== W * H) {
+                    result += "\n";
+                }
             }
-            output.textContent = res;
-            status.textContent = `✅ 변환 완료! (${W}x${H})`;
+            
+            output.textContent = result.trim();
         };
         reader.readAsDataURL(file);
     });
 
-    document.getElementById('copyBtn').onclick = () => {
-        const content = output.textContent;
-        if (content.length < 10) return;
-        navigator.clipboard.writeText(content).then(() => {
-            alert("복사되었습니다! 엔트리 리스트에 붙여넣으세요.");
+    copyBtn.addEventListener('click', function() {
+        const text = output.textContent;
+        if (text.length < 10) return alert('이미지를 먼저 선택해주세요!');
+        
+        navigator.clipboard.writeText(text).then(() => {
+            alert('복사 성공! (W=1;H=1; 000000 형식)');
         });
-    };
+    });
 </script>
+
 </body>
 </html>
